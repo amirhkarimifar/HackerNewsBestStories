@@ -107,6 +107,7 @@ tests/HackerNews.Api.Tests
   BestStoriesCacheTests          Unit tests for the cache: ordering, single refresh, stale-while-revalidate, back-off, partial failures, shutdown
   BestStoriesEndpointTests       In-process HTTP tests: JSON shape, validation, 503, ETag/304, 429, health, warm-up
   BestStoriesHealthCheckTests    Healthy, degraded and unhealthy states
+  HackerNewsClientTests          The real client as registered: URLs, User-Agent, parsing real Hacker News JSON
 ```
 
 There is one project with feature folders. For one endpoint, separate Domain/Application/Infrastructure projects would add ceremony without making the code any safer. The Hacker News client sits behind `IHackerNewsClient` and time is read through `TimeProvider`, so tests run deterministically without a network.
