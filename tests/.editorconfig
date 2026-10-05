@@ -1,0 +1,3 @@
+[*.cs]
+# Test names read as sentences (Returns_the_top_n_stories_...).
+dotnet_diagnostic.CA1707.severity = none
