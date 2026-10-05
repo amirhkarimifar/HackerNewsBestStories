@@ -27,7 +27,7 @@ public class BestStoriesCacheTests
         _hackerNews.AddStory(1, score: 10).AddStory(2, score: 300).AddStory(3, score: 50).AddStory(4, score: 200);
         var cache = CreateCache();
 
-        var stories = await cache.GetBestStoriesAsync(3, CancellationToken.None);
+        var stories = await GetBestAsync(cache, 3);
 
         Assert.Equal([300, 200, 50], stories.Select(s => s.Score));
     }
@@ -38,7 +38,7 @@ public class BestStoriesCacheTests
         _hackerNews.AddStory(1, score: 10).AddStory(2, score: 20);
         var cache = CreateCache();
 
-        var stories = await cache.GetBestStoriesAsync(500, CancellationToken.None);
+        var stories = await GetBestAsync(cache, 500);
 
         Assert.Equal(2, stories.Count);
     }
@@ -59,7 +59,7 @@ public class BestStoriesCacheTests
         }, 21233041);
         var cache = CreateCache();
 
-        var story = Assert.Single(await cache.GetBestStoriesAsync(1, CancellationToken.None));
+        var story = Assert.Single(await GetBestAsync(cache, 1));
 
         Assert.Equal(
             new Story(
@@ -78,7 +78,7 @@ public class BestStoriesCacheTests
         _hackerNews.AddItem(new HackerNewsItem { Id = 42, Type = "story", Title = "Ask HN: Anything?", Score = 5 }, 42);
         var cache = CreateCache();
 
-        var story = Assert.Single(await cache.GetBestStoriesAsync(1, CancellationToken.None));
+        var story = Assert.Single(await GetBestAsync(cache, 1));
 
         Assert.Equal("https://news.ycombinator.com/item?id=42", story.Uri);
         Assert.Equal(0, story.CommentCount);
@@ -95,7 +95,7 @@ public class BestStoriesCacheTests
             .AddItem(new HackerNewsItem { Id = 5, Type = "job", Score = 99 }, 5);
         var cache = CreateCache();
 
-        var stories = await cache.GetBestStoriesAsync(10, CancellationToken.None);
+        var stories = await GetBestAsync(cache, 10);
 
         Assert.Equal(["Story 1"], stories.Select(s => s.Title));
     }
@@ -113,7 +113,7 @@ public class BestStoriesCacheTests
         var cache = CreateCache();
 
         var callers = Enumerable.Range(0, 200)
-            .Select(_ => Task.Run(() => cache.GetBestStoriesAsync(5, CancellationToken.None)))
+            .Select(_ => Task.Run(() => GetBestAsync(cache, 5)))
             .ToArray();
         await Eventually(() => _hackerNews.BestStoryIdsCalls == 1);
         gate.SetResult();
@@ -130,10 +130,10 @@ public class BestStoriesCacheTests
         _hackerNews.AddStory(1, score: 10);
         var cache = CreateCache();
 
-        await cache.GetBestStoriesAsync(1, CancellationToken.None);
+        await GetBestAsync(cache, 1);
         _time.Advance(TimeSpan.FromSeconds(59));
-        await cache.GetBestStoriesAsync(1, CancellationToken.None);
-        await cache.GetBestStoriesAsync(1, CancellationToken.None);
+        await GetBestAsync(cache, 1);
+        await GetBestAsync(cache, 1);
 
         Assert.Equal(1, _hackerNews.BestStoryIdsCalls);
     }
@@ -143,18 +143,18 @@ public class BestStoriesCacheTests
     {
         _hackerNews.AddStory(1, score: 10, title: "Old");
         var cache = CreateCache();
-        await cache.GetBestStoriesAsync(1, CancellationToken.None);
+        await GetBestAsync(cache, 1);
 
         var gate = new TaskCompletionSource();
         _hackerNews.BestStoryIdsGate = gate.Task;
         _hackerNews.AddStory(2, score: 20, title: "New");
         _time.Advance(TimeSpan.FromMinutes(1));
 
-        var duringRefresh = await cache.GetBestStoriesAsync(1, CancellationToken.None);
+        var duringRefresh = await GetBestAsync(cache, 1);
         Assert.Equal("Old", Assert.Single(duringRefresh).Title);
 
         gate.SetResult();
-        await Eventually(async () => (await cache.GetBestStoriesAsync(1, CancellationToken.None))[0].Title == "New");
+        await Eventually(async () => (await GetBestAsync(cache, 1))[0].Title == "New");
         Assert.Equal(2, _hackerNews.BestStoryIdsCalls);
     }
 
@@ -163,12 +163,12 @@ public class BestStoriesCacheTests
     {
         _hackerNews.AddStory(1, score: 10);
         var cache = CreateCache();
-        await cache.GetBestStoriesAsync(1, CancellationToken.None);
+        await GetBestAsync(cache, 1);
 
         _hackerNews.Fail = true;
         _time.Advance(TimeSpan.FromMinutes(1));
 
-        var stories = await cache.GetBestStoriesAsync(1, CancellationToken.None);
+        var stories = await GetBestAsync(cache, 1);
         Assert.Equal("Story 1", Assert.Single(stories).Title);
         await Eventually(() => _hackerNews.BestStoryIdsCalls == 2);
 
@@ -176,7 +176,7 @@ public class BestStoriesCacheTests
         _time.Advance(TimeSpan.FromSeconds(10));
         for (var i = 0; i < 10; i++)
         {
-            await cache.GetBestStoriesAsync(1, CancellationToken.None);
+            await GetBestAsync(cache, 1);
         }
 
         Assert.Equal(2, _hackerNews.BestStoryIdsCalls);
@@ -185,7 +185,7 @@ public class BestStoriesCacheTests
         _time.Advance(TimeSpan.FromSeconds(5));
         await Eventually(async () =>
         {
-            await cache.GetBestStoriesAsync(1, CancellationToken.None);
+            await GetBestAsync(cache, 1);
             return _hackerNews.BestStoryIdsCalls == 3;
         });
     }
@@ -197,14 +197,14 @@ public class BestStoriesCacheTests
         _hackerNews.Fail = true;
         var cache = CreateCache();
 
-        await Assert.ThrowsAsync<HackerNewsUnavailableException>(() => cache.GetBestStoriesAsync(1, CancellationToken.None));
-        await Assert.ThrowsAsync<HackerNewsUnavailableException>(() => cache.GetBestStoriesAsync(1, CancellationToken.None));
+        await Assert.ThrowsAsync<HackerNewsUnavailableException>(() => GetBestAsync(cache, 1));
+        await Assert.ThrowsAsync<HackerNewsUnavailableException>(() => GetBestAsync(cache, 1));
         Assert.Equal(1, _hackerNews.BestStoryIdsCalls);
 
         _hackerNews.Fail = false;
         _time.Advance(TimeSpan.FromSeconds(15));
 
-        var stories = await cache.GetBestStoriesAsync(1, CancellationToken.None);
+        var stories = await GetBestAsync(cache, 1);
         Assert.Single(stories);
         Assert.Equal(2, _hackerNews.BestStoryIdsCalls);
     }
@@ -220,7 +220,7 @@ public class BestStoriesCacheTests
         _hackerNews.ItemDelay = TimeSpan.FromMilliseconds(20);
         var cache = CreateCache(new HackerNewsOptions { MaxConcurrentRequests = 4 });
 
-        await cache.GetBestStoriesAsync(1, CancellationToken.None);
+        await GetBestAsync(cache, 1);
 
         Assert.Equal(40, _hackerNews.ItemCalls);
         Assert.InRange(_hackerNews.MaxItemCallsInFlight, 2, 4);
@@ -236,15 +236,15 @@ public class BestStoriesCacheTests
         }
 
         var cache = CreateCache();
-        await cache.GetBestStoriesAsync(1, CancellationToken.None);
+        await GetBestAsync(cache, 1);
 
         _hackerNews.AddStory(1, score: 500, title: "One (new)").AddStory(2, score: 30, title: "Two (new)");
         _hackerNews.FailingItemIds.Add(2);
         _time.Advance(TimeSpan.FromMinutes(1));
-        await cache.GetBestStoriesAsync(1, CancellationToken.None);
-        await Eventually(async () => (await cache.GetBestStoriesAsync(1, CancellationToken.None))[0].Title == "One (new)");
+        await GetBestAsync(cache, 1);
+        await Eventually(async () => (await GetBestAsync(cache, 1))[0].Title == "One (new)");
 
-        var stories = await cache.GetBestStoriesAsync(2, CancellationToken.None);
+        var stories = await GetBestAsync(cache, 2);
         Assert.Equal(["One (new)", "Two (old)"], stories.Select(s => s.Title));
     }
 
@@ -253,23 +253,23 @@ public class BestStoriesCacheTests
     {
         _hackerNews.AddStory(1, score: 10, title: "Old").AddStory(2, score: 5);
         var cache = CreateCache();
-        await cache.GetBestStoriesAsync(1, CancellationToken.None);
+        await GetBestAsync(cache, 1);
 
         _hackerNews.AddStory(3, score: 99, title: "New");
         _hackerNews.FailingItemIds.UnionWith([1, 2]);
         _time.Advance(TimeSpan.FromMinutes(1));
-        await cache.GetBestStoriesAsync(1, CancellationToken.None);
+        await GetBestAsync(cache, 1);
         await Eventually(() => _hackerNews.BestStoryIdsCalls == 2);
 
         // A failed refresh backs off for RetryAfterFailure (15s), not CacheDuration (60s).
         _time.Advance(TimeSpan.FromSeconds(15));
         await Eventually(async () =>
         {
-            await cache.GetBestStoriesAsync(1, CancellationToken.None);
+            await GetBestAsync(cache, 1);
             return _hackerNews.BestStoryIdsCalls == 3;
         });
 
-        Assert.Equal("Old", Assert.Single(await cache.GetBestStoriesAsync(1, CancellationToken.None)).Title);
+        Assert.Equal("Old", Assert.Single(await GetBestAsync(cache, 1)).Title);
     }
 
     [Fact]
@@ -312,14 +312,14 @@ public class BestStoriesCacheTests
     {
         _hackerNews.AddStory(1, score: 10);
         var cache = CreateCache();
-        await cache.GetBestStoriesAsync(1, CancellationToken.None);
+        await GetBestAsync(cache, 1);
 
         _hackerNews.BestStoryIds.Clear();
         _time.Advance(TimeSpan.FromMinutes(1));
-        await cache.GetBestStoriesAsync(1, CancellationToken.None);
+        await GetBestAsync(cache, 1);
 
         await AssertLastRefreshFailed(cache);
-        Assert.Equal("Story 1", Assert.Single(await cache.GetBestStoriesAsync(1, CancellationToken.None)).Title);
+        Assert.Equal("Story 1", Assert.Single(await GetBestAsync(cache, 1)).Title);
     }
 
     [Fact]
@@ -327,14 +327,14 @@ public class BestStoriesCacheTests
     {
         _hackerNews.AddStory(1, score: 10);
         var cache = CreateCache();
-        await cache.GetBestStoriesAsync(1, CancellationToken.None);
+        await GetBestAsync(cache, 1);
 
         _hackerNews.AddItem(null, 1);
         _time.Advance(TimeSpan.FromMinutes(1));
-        await cache.GetBestStoriesAsync(1, CancellationToken.None);
+        await GetBestAsync(cache, 1);
 
         await AssertLastRefreshFailed(cache);
-        Assert.Equal("Story 1", Assert.Single(await cache.GetBestStoriesAsync(1, CancellationToken.None)).Title);
+        Assert.Equal("Story 1", Assert.Single(await GetBestAsync(cache, 1)).Title);
     }
 
     [Fact]
@@ -342,7 +342,7 @@ public class BestStoriesCacheTests
     {
         var cache = CreateCache();
 
-        await Assert.ThrowsAsync<HackerNewsUnavailableException>(() => cache.GetBestStoriesAsync(1, CancellationToken.None));
+        await Assert.ThrowsAsync<HackerNewsUnavailableException>(() => GetBestAsync(cache, 1));
     }
 
     [Fact]
@@ -351,7 +351,7 @@ public class BestStoriesCacheTests
         _hackerNews.AddItem(new HackerNewsItem { Id = 7, Type = "story", Title = "Empty url", Url = "", Score = 5 }, 7);
         var cache = CreateCache();
 
-        var story = Assert.Single(await cache.GetBestStoriesAsync(1, CancellationToken.None));
+        var story = Assert.Single(await GetBestAsync(cache, 1));
 
         Assert.Equal("https://news.ycombinator.com/item?id=7", story.Uri);
     }
@@ -362,10 +362,10 @@ public class BestStoriesCacheTests
         _hackerNews.AddStory(1, score: 10, title: "First").AddStory(2, score: 5, title: "Second");
         var cache = CreateCache();
 
-        var stories = await cache.GetBestStoriesAsync(2, CancellationToken.None);
+        var stories = await GetBestAsync(cache, 2);
 
         Assert.Throws<NotSupportedException>(() => ((IList<Story>)stories)[0] = stories[1]);
-        Assert.Equal("First", (await cache.GetBestStoriesAsync(1, CancellationToken.None))[0].Title);
+        Assert.Equal("First", (await GetBestAsync(cache, 1))[0].Title);
     }
 
     /// <summary>
@@ -378,10 +378,14 @@ public class BestStoriesCacheTests
         _time.Advance(TimeSpan.FromSeconds(15));
         await Eventually(async () =>
         {
-            await cache.GetBestStoriesAsync(1, CancellationToken.None);
+            await GetBestAsync(cache, 1);
             return _hackerNews.BestStoryIdsCalls == 3;
         });
     }
+
+    /// <summary>Reads the best stories the way the endpoint does: the current snapshot, cut to <paramref name="count"/>.</summary>
+    private static async Task<IReadOnlyList<Story>> GetBestAsync(BestStoriesCache cache, int count) =>
+        (await cache.GetSnapshotAsync(CancellationToken.None)).Take(count);
 
     private static Task Eventually(Func<bool> condition) => Eventually(() => Task.FromResult(condition()));
 

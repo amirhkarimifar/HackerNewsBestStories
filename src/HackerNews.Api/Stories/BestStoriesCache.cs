@@ -36,12 +36,6 @@ public sealed class BestStoriesCache(
     /// <summary>The latest stories loaded, or null if nothing has been loaded yet. Never triggers a refresh.</summary>
     public BestStoriesSnapshot? Current => Volatile.Read(ref _snapshot);
 
-    public async Task<IReadOnlyList<Story>> GetBestStoriesAsync(int count, CancellationToken cancellationToken)
-    {
-        var snapshot = await GetSnapshotAsync(cancellationToken);
-        return snapshot.Take(count);
-    }
-
     public Task<BestStoriesSnapshot> GetSnapshotAsync(CancellationToken cancellationToken)
     {
         Task<BestStoriesSnapshot> refresh;
