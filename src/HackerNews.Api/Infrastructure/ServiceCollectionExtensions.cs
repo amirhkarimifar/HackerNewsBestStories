@@ -18,13 +18,22 @@ public static class ServiceCollectionExtensions
             .ValidateOnStart();
 
         // Standard resilience pipeline: rate limiter, total timeout, retries with jittered backoff,
-        // circuit breaker and per-attempt timeout. Tuned under HackerNews:Resilience in configuration.
-        services.AddHttpClient(HackerNewsClient.HttpClientName, (serviceProvider, http) =>
-            {
-                http.BaseAddress = serviceProvider.GetRequiredService<IOptions<HackerNewsOptions>>().Value.BaseAddress;
-                http.DefaultRequestHeaders.UserAgent.ParseAdd("HackerNewsBestStoriesApi/1.0");
-            })
-            .AddStandardResilienceHandler(section.GetSection("Resilience"));
+        // circuit breaker and per-attempt timeout. Tuned under HackerNews:Resilience in configuration;
+        // without that section the library defaults apply (binding an empty section would throw).
+        var httpClient = services.AddHttpClient(HackerNewsClient.HttpClientName, (serviceProvider, http) =>
+        {
+            http.BaseAddress = serviceProvider.GetRequiredService<IOptions<HackerNewsOptions>>().Value.BaseAddress;
+            http.DefaultRequestHeaders.UserAgent.ParseAdd("HackerNewsBestStoriesApi/1.0");
+        });
+        var resilience = section.GetSection("Resilience");
+        if (resilience.Exists())
+        {
+            httpClient.AddStandardResilienceHandler(resilience);
+        }
+        else
+        {
+            httpClient.AddStandardResilienceHandler();
+        }
 
         services.TryAddSingleton(TimeProvider.System);
         services.AddSingleton<IHackerNewsClient, HackerNewsClient>();

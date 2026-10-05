@@ -22,9 +22,8 @@ public sealed class HackerNewsClientTests : IDisposable
         var services = new ServiceCollection();
         services.AddLogging();
         services.AddMetrics();
-        services.AddBestStories(new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?> { ["HackerNews:Resilience:Retry:MaxRetryAttempts"] = "2" })
-            .Build());
+        // Empty configuration on purpose: every setting, including the resilience pipeline, must have a working default.
+        services.AddBestStories(new ConfigurationBuilder().Build());
         services.AddHttpClient(HackerNewsClient.HttpClientName).ConfigurePrimaryHttpMessageHandler(() => _handler);
 
         _services = services.BuildServiceProvider();
