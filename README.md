@@ -140,3 +140,10 @@ Builds run with `TreatWarningsAsErrors` and the `latest-recommended` .NET analyz
 - **A contract test against the real API.** An opt-in test that calls Hacker News would catch changes to its schema, which the fake client cannot.
 - **CI.** A pipeline that builds and runs the tests on every change.
 - **Paging.** An `offset` parameter, if clients need more than the first page.
+
+## AI usage
+
+I used [Claude Code](https://claude.com/claude-code) while building this project:
+
+- **Planning:** Claude Fable, to plan the design and the work.
+- **Audit:** Claude Opus, to review the implementation.
